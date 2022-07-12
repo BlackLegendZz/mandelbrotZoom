@@ -1,0 +1,48 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<double> reals;
+RWStructuredBuffer<double> imags;
+RWStructuredBuffer<float3> colours;
+RWTexture2D<float4> displayTexture;
+float iterations;
+int calculationLimit;
+
+int CalculatePoint(double real, double imag)
+{
+    int iter = 0;
+    double z_real = 0.0;
+    double z_imag = 0.0;
+    while(iter < iterations)
+    {
+        double realSqr = z_real * z_real;
+        double imagSqr = z_imag * z_imag;
+        if (realSqr + imagSqr > calculationLimit)
+        {
+            break;
+        }
+        
+        //squaring z
+        z_imag = 2 * z_real * z_imag;
+        z_real = realSqr - imagSqr;
+        
+        //adding c 
+        z_real += real;
+        z_imag += imag;
+        
+        iter++;
+    }
+    iter--;
+    return iter;
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    double real = reals[id.x];
+    double imag = imags[id.y];
+    int colourIdx = CalculatePoint(real, imag);
+
+    float3 col = colours[colourIdx];
+    displayTexture[id.xy] = float4(col.r, col.g, col.b, 1.0);
+}
