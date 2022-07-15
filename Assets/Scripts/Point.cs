@@ -7,11 +7,11 @@ using UnityEngine;
 
 public struct Point
 {
-    public double real;
-    public double imag;
+    public decimal real;
+    public decimal imag;
     public Color col;
 
-    public Point(double real, double imag)
+    public Point(decimal real, decimal imag)
     {
         this.real = real;
         this.imag = imag;

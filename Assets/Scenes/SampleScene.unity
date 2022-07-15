@@ -154,27 +154,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 00ce097bbc69c4f44ab7c31f64f4e2b7, type: 3}
-  iterations: 300
-  width: 1920
-  calculationLimit: 4
-  zoomFactor: 0.4
-  realDest: -0.374004139
-  imagDest: 0.659792175
-  gradient:
+  width: 720
+  iterations: 1500
+  zoomFactor: 0.1
+  realDest: -0,776592902
+  imagDest: -0,13664090722
+  record: 0
+  selectedGradient:
     serializedVersion: 2
-    key0: {r: 0, g: 0.02745098, b: 0.39215687, a: 1}
-    key1: {r: 0.1254902, g: 0.41960785, b: 0.79607844, a: 1}
-    key2: {r: 0.92941177, g: 1, b: 1, a: 0}
-    key3: {r: 1, g: 0.6666667, b: 0, a: 0}
-    key4: {r: 0.20754719, g: 0.028195078, b: 0.123669595, a: 0}
-    key5: {r: 0, g: 0.007843138, b: 0, a: 0}
+    key0: {r: 0, g: 0.007, b: 0.392, a: 1}
+    key1: {r: 0.125, g: 0.419, b: 0.796, a: 1}
+    key2: {r: 0.929, g: 1, b: 1, a: 0}
+    key3: {r: 1, g: 0.666, b: 0.035, a: 0}
+    key4: {r: 0, g: 0.007, b: 0, a: 0}
+    key5: {r: 0, g: 0.007, b: 0.392, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
     key7: {r: 0, g: 0, b: 0, a: 0}
     ctime0: 0
     ctime1: 10486
     ctime2: 27525
-    ctime3: 42106
-    ctime4: 65535
+    ctime3: 42336
+    ctime4: 56163
     ctime5: 65535
     ctime6: 0
     ctime7: 0
@@ -187,8 +187,9 @@ MonoBehaviour:
     atime6: 0
     atime7: 0
     m_Mode: 0
-    m_NumColorKeys: 5
+    m_NumColorKeys: 6
     m_NumAlphaKeys: 2
+  gradient: 0
 --- !u!20 &519420031
 Camera:
   m_ObjectHideFlags: 0
@@ -264,7 +265,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2147460404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -280,7 +281,6 @@ MonoBehaviour:
   iterations: 20
   width: 1000
   zoomFactor: 0.1
-  destination: {x: -0.37400413, y: 0.6597922}
 --- !u!23 &2147460405
 MeshRenderer:
   m_ObjectHideFlags: 0

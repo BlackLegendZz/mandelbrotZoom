@@ -6,16 +6,20 @@ using UnityEngine;
 public class MandelbrotGPU : MonoBehaviour
 {
     public ComputeShader computeShader;
+    [Range(100, 3000)]
+    public int width = 1000;
+    [Range(10, 5000)]
     public int iterations = 50;
-    [Range(0,3000)]
-    public int width = 500;
-    [Range(4, 10000)]
-    public int calculationLimit = 4;
+    [Range(-10,10)]
     public float zoomFactor = 0.1f;
-    public double realDest = 0;
-    public double imagDest = 0;
-    public Gradient gradient;
-    
+    public string realDest = "0";
+    public string imagDest = "0";
+    public bool record = false;
+    //Just for display
+    public Gradient selectedGradient;
+    public Gradients.gradients gradient = Gradients.gradients.normal;
+
+
     ComputeBuffer computeBufferReal;
     ComputeBuffer computeBufferImag;
     ComputeBuffer computeBufferColours;
@@ -28,21 +32,26 @@ public class MandelbrotGPU : MonoBehaviour
     Vector3[] gradientColours;
     int d_size;
     int v3_size;
+    int _width;
+    Texture2D textureForImg;
+    Rect rect;
+    uint frameCounter = 0;
 
     void Calculate()
     {
+        Gradient gr = Gradients.gradientList[(int)gradient];
         gradientColours = new Vector3[iterations];
         for (int i = 0; i < iterations; i++)
         {
-            Color c = gradient.Evaluate(i / (float)iterations);
+            Color c = gr.Evaluate(i / (float)iterations);
             Vector3 v = new Vector3(c.r, c.g, c.b);
             gradientColours[i] = v;
         }
 
-        double[] reals = MandelbrotHelper.Linspace(bounds.xMin, bounds.xMax, width);
-        double[] imags = MandelbrotHelper.Linspace(bounds.yMin, bounds.yMax, height);
+        double[] reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
+        double[] imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
 
-        computeBufferReal = new ComputeBuffer(width, d_size);
+        computeBufferReal = new ComputeBuffer(_width, d_size);
         computeBufferImag = new ComputeBuffer(height, d_size);
         computeBufferColours = new ComputeBuffer(iterations, v3_size);
         computeBufferReal.SetData(reals);
@@ -54,64 +63,71 @@ public class MandelbrotGPU : MonoBehaviour
         computeShader.SetBuffer(0, "colours", computeBufferColours);
         computeShader.SetTexture(0, "displayTexture", displayTexture);
         computeShader.SetFloat("iterations", iterations);
-        computeShader.SetInt("calculationLimit", calculationLimit);
-        computeShader.Dispatch(0, width / 8, height / 8, 1);
+        computeShader.Dispatch(0, _width / 8, height / 8, 1);
 
         computeBufferReal.Dispose();
         computeBufferImag.Dispose();
         computeBufferColours.Dispose();
+
+        frameCounter++;
     }
 
     void InitImageValues()
     {
         //the bounding box starts as a square which might not be the right format
         //so scale the y axis accordingly to avoid stretching
-        bounds = new ImageBounds(-2+destination.real, 2+destination.real, -2+destination.imag, 2+destination.imag);
-        float scale = y / x;
+        bounds = new ImageBounds(-2, 2, -2, 2);
+        decimal scale = (decimal)(y / x);
         bounds.yMin *= scale;
         bounds.yMax *= scale;
-        height = (int)(width * scale);
+        height = (int)(_width * scale);
     }
 
     void UpdateBoundaries()
     {
-        float t = zoomFactor * Time.deltaTime;
-        double xMinDist = Math.Abs(bounds.xMin - destination.real);
-        double xMaxDist = Math.Abs(destination.real - bounds.xMax);
-        double yMinDist = Math.Abs(bounds.yMin - destination.imag);
-        double yMaxDist = Math.Abs(destination.imag - bounds.yMax);
+        decimal t = (decimal)(zoomFactor * Time.deltaTime);
+        decimal xMinDist = Math.Abs(bounds.xMin - destination.real);
+        decimal xMaxDist = Math.Abs(destination.real - bounds.xMax);
+        decimal yMinDist = Math.Abs(bounds.yMin - destination.imag);
+        decimal yMaxDist = Math.Abs(destination.imag - bounds.yMax);
 
-        double xMinDistSc = t * xMinDist;
-        double xMaxDistSc = t * xMaxDist;
-        double yMinDistSc = t * yMinDist;
-        double yMaxDistSc = t * yMaxDist;
+        decimal xMinDistSc = t * xMinDist;
+        decimal xMaxDistSc = t * xMaxDist;
+        decimal yMinDistSc = t * yMinDist;
+        decimal yMaxDistSc = t * yMaxDist;
 
         bounds.xMin += xMinDistSc;
         bounds.xMax -= xMaxDistSc;
         bounds.yMin += yMinDistSc;
         bounds.yMax -= yMaxDistSc;
     }
-
+    
     // Start is called before the first frame update
     void Start()
     {
         d_size = sizeof(double);
         v3_size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vector3));
 
-        destination.real = realDest;
-        destination.imag = imagDest;
+        _width = width;
+        destination.real = decimal.Parse(realDest);
+        destination.imag = decimal.Parse(imagDest);
+        Debug.Log($"{destination.real}, {destination.imag}");
         x = 16;// transform.localScale.x;
         y = 9;// transform.localScale.y;
         
         InitImageValues();
 
-        displayTexture = new RenderTexture(width, height, 0);
+        displayTexture = new RenderTexture(_width, height, 0);
         displayTexture.autoGenerateMips = false;
         displayTexture.wrapMode = TextureWrapMode.Clamp;
         displayTexture.enableRandomWrite = true;
         displayTexture.filterMode = FilterMode.Point;
         displayTexture.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat;
         displayTexture.Create();
+
+
+        textureForImg = new Texture2D(_width, height, TextureFormat.RGBA32, false);
+        rect = new Rect(0, 0, _width, height);
 
         Calculate();
     }
@@ -131,6 +147,20 @@ public class MandelbrotGPU : MonoBehaviour
 
         UpdateBoundaries();
         Calculate();
+        
+        if (!record)
+        {
+            return;
+        }
+        //save rendertexture as image
+        RenderTexture.active = displayTexture;
+        textureForImg.ReadPixels(rect, 0, 0);
+        textureForImg.Apply();
+        byte[] bytes;
+        bytes = textureForImg.EncodeToPNG();
+
+        string path = @$"C:\Users\Jan\Desktop\sc\{frameCounter}.png";
+        System.IO.File.WriteAllBytes(path, bytes);
     }
 
     void OnGUI()
@@ -161,4 +191,5 @@ public class MandelbrotGPU : MonoBehaviour
         Vector3 worldPos = Camera.main.ScreenToWorldPoint(mPos);
 
     }
+    
 }

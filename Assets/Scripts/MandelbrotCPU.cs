@@ -9,20 +9,22 @@ public class MandelbrotCPU : MonoBehaviour
     [Range(0,3000)]
     public int width = 500;
     public float zoomFactor = 0.1f;
-    public Vector2 destination = Vector2.zero;
+    public decimal realDest = 0;
+    public decimal imagDest = 0;
+
+    Point destination;
     ImageBounds bounds;
     Texture2D texture;
     Material material;
     double[,] image;
     int height;
-    Vector2 _dest;
     bool run = false;
     float x, y;
 
     void Calculate()
     {
-        double[] reals = MandelbrotHelper.Linspace(bounds.xMin, bounds.xMax, width);
-        double[] imags = MandelbrotHelper.Linspace(bounds.yMin, bounds.yMax, height);
+        decimal[] reals = MandelbrotHelper.Linspace(bounds.xMin, bounds.xMax, width);
+        decimal[] imags = MandelbrotHelper.Linspace(bounds.yMin, bounds.yMax, height);
 
         for (int i = 0; i < width; i++)
         {
@@ -36,19 +38,18 @@ public class MandelbrotCPU : MonoBehaviour
         }
     }
     
-    float IterCalculation(double real, double imag)
+    int IterCalculation(decimal real, decimal imag)
     {
-        float iter = 0;
-        double z_real = 0.0;
-        double z_imag = 0.0;
+        int iter = 0;
+        decimal z_real = 0;
+        decimal z_imag = 0;
         while (iter < iterations)
         {
-            double realSqr = z_real * z_real;
-            double imagSqr = z_imag * z_imag;
+            decimal realSqr = z_real * z_real;
+            decimal imagSqr = z_imag * z_imag;
             if (realSqr + imagSqr > 4)
             {
-                float magnitude = (float)Math.Sqrt(realSqr + imagSqr);
-                return (float)(iter + 1 - Math.Log(Math.Log(magnitude)) / Math.Log(2));
+                break;
             }
 
             //squaring z
@@ -69,13 +70,14 @@ public class MandelbrotCPU : MonoBehaviour
         //the bounding box starts as a square which might not be the right format
         //so scale the y axis accordingly to avoid stretching
         bounds = new ImageBounds(-2, 2, -2, 2);
-        float scale = y / x;
+        decimal scale = (decimal)(y / x);
         bounds.yMin *= scale;
         bounds.yMax *= scale;
         height = (int)(width * scale);
         image = new double[width, height];
 
-        _dest = destination;
+        destination.real = realDest;
+        destination.imag = imagDest;
 
     }
     // Start is called before the first frame update
@@ -101,15 +103,16 @@ public class MandelbrotCPU : MonoBehaviour
 
     void UpdateBoundaries()
     {
-        double xMinDist = Math.Abs(bounds.xMin - _dest.x);
-        double xMaxDist = Math.Abs(_dest.x - bounds.xMax);
-        double yMinDist = Math.Abs(bounds.yMin - _dest.y);
-        double yMaxDist = Math.Abs(_dest.y - bounds.yMax);
+        decimal t = (decimal)(zoomFactor * Time.deltaTime);
+        decimal xMinDist = Math.Abs(bounds.xMin - destination.real);
+        decimal xMaxDist = Math.Abs(destination.real - bounds.xMax);
+        decimal yMinDist = Math.Abs(bounds.yMin - destination.imag);
+        decimal yMaxDist = Math.Abs(destination.imag - bounds.yMax);
 
-        double xMinDistSc = zoomFactor * xMinDist;
-        double xMaxDistSc = zoomFactor * xMaxDist;
-        double yMinDistSc = zoomFactor * yMinDist;
-        double yMaxDistSc = zoomFactor * yMaxDist;
+        decimal xMinDistSc = t * xMinDist;
+        decimal xMaxDistSc = t * xMaxDist;
+        decimal yMinDistSc = t * yMinDist;
+        decimal yMaxDistSc = t * yMaxDist;
 
         bounds.xMin += xMinDistSc;
         bounds.xMax -= xMaxDistSc;
@@ -130,12 +133,6 @@ public class MandelbrotCPU : MonoBehaviour
 
         texture.SetPixels(MandelbrotHelper.FlatImg(width, height, image));
         texture.Apply();
-    }
-
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = new Color(1.0f, 0.0f, 0.0f, 0.5f);
-        Gizmos.DrawSphere(new Vector3(destination.x, destination.y, 0), 0.01f);
     }
 
     private void OnGUI()

@@ -6,7 +6,6 @@ RWStructuredBuffer<double> imags;
 RWStructuredBuffer<float3> colours;
 RWTexture2D<float4> displayTexture;
 float iterations;
-int calculationLimit;
 
 int CalculatePoint(double real, double imag)
 {
@@ -17,7 +16,7 @@ int CalculatePoint(double real, double imag)
     {
         double realSqr = z_real * z_real;
         double imagSqr = z_imag * z_imag;
-        if (realSqr + imagSqr > calculationLimit)
+        if (realSqr + imagSqr > 4.0)
         {
             break;
         }

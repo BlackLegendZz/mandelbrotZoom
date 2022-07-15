@@ -7,6 +7,20 @@ using UnityEngine;
 
 internal static class MandelbrotHelper
 {
+    public static decimal[] Linspace(decimal min, decimal max, int length)
+    {
+        decimal[] space = new decimal[length];
+        decimal step = (max - min) / length;
+        decimal val = min;
+
+        for (int i = 0; i < length; i++)
+        {
+            space[i] = val;
+            val += step;
+        }
+        return space;
+    }
+
     public static double[] Linspace(double min, double max, int length)
     {
         double[] space = new double[length];

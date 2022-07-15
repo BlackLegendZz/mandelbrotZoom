@@ -1,12 +1,12 @@
 using UnityEngine;
 
 public struct ImageBounds {
-    public double xMin;
-    public double xMax;
-    public double yMin;
-    public double yMax;
+    public decimal xMin;
+    public decimal xMax;
+    public decimal yMin;
+    public decimal yMax;
 
-    public ImageBounds(double xMin, double xMax, double yMin, double yMax)
+    public ImageBounds(decimal xMin, decimal xMax, decimal yMin, decimal yMax)
     {
         this.xMin = xMin;
         this.xMax = xMax;
