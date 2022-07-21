@@ -6,17 +6,29 @@ using UnityEngine;
 public class MandelbrotGPU : MonoBehaviour
 {
     public ComputeShader computeShader;
+
     [Range(100, 3000)]
     public int width = 1000;
-    [Range(10, 5000)]
+
+    [Range(1, 120)]
+    public int keyframes = 1;
+    public bool record = false;
+
+    [Range(10, 5000), Header("Level of detail")]
     public int iterations = 50;
-    [Range(-10,10)]
-    public float zoomFactor = 0.1f;
+
+    [Range(-0.1f,0.1f), Header("Zoom Variables")]
+    public float zoomFactor = 0.01f;
+
+    [Range(1,10)]
+    public float zoomMultiplier = 1;
+
+    [Header("Destination")]
     public string realDest = "0";
     public string imagDest = "0";
-    public bool record = false;
-    //Just for display
-    public Gradient selectedGradient;
+
+    [Header("Visual Settings")]
+    public Gradient selectedGradient; //Just for display
     public Gradients.gradients gradient = Gradients.gradients.normal;
 
 
@@ -26,18 +38,21 @@ public class MandelbrotGPU : MonoBehaviour
     Point destination;
     ImageBounds bounds;
     int height;
-    bool run = false;
+    int _width;
     float x, y;
+    bool run = false;
     RenderTexture displayTexture;
+    RenderTexture currentTexture;
+    RenderTexture nextTexture;
+    Texture2D textureForImg;
     Vector3[] gradientColours;
     int d_size;
     int v3_size;
-    int _width;
-    Texture2D textureForImg;
     Rect rect;
-    uint frameCounter = 0;
+    int frameCounter = 0;
+    int countToKeyframe = 0;
 
-    void Calculate()
+    void GetDiscreteGradient()
     {
         Gradient gr = Gradients.gradientList[(int)gradient];
         gradientColours = new Vector3[iterations];
@@ -47,7 +62,12 @@ public class MandelbrotGPU : MonoBehaviour
             Vector3 v = new Vector3(c.r, c.g, c.b);
             gradientColours[i] = v;
         }
+    }
 
+    void Calculate()
+    {
+
+        GetDiscreteGradient();
         double[] reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
         double[] imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
 
@@ -61,13 +81,26 @@ public class MandelbrotGPU : MonoBehaviour
         computeShader.SetBuffer(0, "reals", computeBufferReal);
         computeShader.SetBuffer(0, "imags", computeBufferImag);
         computeShader.SetBuffer(0, "colours", computeBufferColours);
-        computeShader.SetTexture(0, "displayTexture", displayTexture);
+        computeShader.SetTexture(0, "nextImg", nextTexture);
         computeShader.SetFloat("iterations", iterations);
         computeShader.Dispatch(0, _width / 8, height / 8, 1);
 
         computeBufferReal.Dispose();
         computeBufferImag.Dispose();
         computeBufferColours.Dispose();
+
+        frameCounter++;
+    }
+    
+    void LerpRenderTextures()
+    {
+        float lerpVal = (float)countToKeyframe / keyframes;
+
+        computeShader.SetTexture(1, "currentImg", currentTexture);
+        computeShader.SetTexture(1, "nextImg", nextTexture);
+        computeShader.SetTexture(1, "displayTexture", displayTexture);
+        computeShader.SetFloat("lerpVal", lerpVal);
+        computeShader.Dispatch(1, _width / 8, height / 8, 1);
 
         frameCounter++;
     }
@@ -85,7 +118,7 @@ public class MandelbrotGPU : MonoBehaviour
 
     void UpdateBoundaries()
     {
-        decimal t = (decimal)(zoomFactor * Time.deltaTime);
+        decimal t = (decimal)(zoomFactor * zoomMultiplier);
         decimal xMinDist = Math.Abs(bounds.xMin - destination.real);
         decimal xMaxDist = Math.Abs(destination.real - bounds.xMax);
         decimal yMinDist = Math.Abs(bounds.yMin - destination.imag);
@@ -117,19 +150,22 @@ public class MandelbrotGPU : MonoBehaviour
         
         InitImageValues();
 
-        displayTexture = new RenderTexture(_width, height, 0);
-        displayTexture.autoGenerateMips = false;
-        displayTexture.wrapMode = TextureWrapMode.Clamp;
-        displayTexture.enableRandomWrite = true;
-        displayTexture.filterMode = FilterMode.Point;
-        displayTexture.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat;
-        displayTexture.Create();
+        displayTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
+        currentTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
+        nextTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
+
 
 
         textureForImg = new Texture2D(_width, height, TextureFormat.RGBA32, false);
         rect = new Rect(0, 0, _width, height);
 
+        //Calculate the states of the first two keyframes
         Calculate();
+        Graphics.Blit(nextTexture, currentTexture);
+        Graphics.Blit(nextTexture, displayTexture);
+        UpdateBoundaries();
+        Calculate();
+        countToKeyframe++;
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -145,9 +181,22 @@ public class MandelbrotGPU : MonoBehaviour
             return;
         }
 
-        UpdateBoundaries();
-        Calculate();
+        if (countToKeyframe == keyframes)
+        {
+            Graphics.Blit(nextTexture, currentTexture);
+            Graphics.Blit(nextTexture, displayTexture);
+            UpdateBoundaries();
+            Calculate();
+            countToKeyframe = 0;
+        }
+        else
+        {
+            LerpRenderTextures();
+            countToKeyframe++;
+        }
         
+
+
         if (!record)
         {
             return;
@@ -178,18 +227,12 @@ public class MandelbrotGPU : MonoBehaviour
             run = false;
             InitImageValues();
             Calculate();
+            Graphics.Blit(nextTexture, displayTexture);
+            countToKeyframe = 0;
         }
         if (GUI.Button(new Rect(500, 0, 100, 50), "Screenshot"))
         {
             ScreenCapture.CaptureScreenshot(@"C:\Users\Jan\Desktop\sc\sc.png");
         }
-    }
-
-    private void OnMouseDown()
-    {
-        Vector3 mPos = Input.mousePosition;
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mPos);
-
-    }
-    
+    } 
 }

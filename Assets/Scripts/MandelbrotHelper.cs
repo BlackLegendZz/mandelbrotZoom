@@ -59,4 +59,17 @@ internal static class MandelbrotHelper
         }
         return flattened;
     }
+
+
+    public static RenderTexture CreateNewRenderTexture(int width, int height)
+    {
+        RenderTexture texture = new RenderTexture(width, height, 0);
+        texture.autoGenerateMips = false;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.enableRandomWrite = true;
+        texture.filterMode = FilterMode.Point;
+        texture.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat;
+        texture.Create();
+        return texture;
+    }
 }
