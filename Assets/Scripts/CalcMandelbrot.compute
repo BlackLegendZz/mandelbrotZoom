@@ -1,6 +1,8 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel Calculate
 #pragma kernel InterpolateRendertexture
+#pragma kernel CalculateSplit
+
 
 RWStructuredBuffer<double> reals;
 RWStructuredBuffer<double> imags;
@@ -8,8 +10,10 @@ RWStructuredBuffer<float3> colours;
 RWTexture2D<float4> displayTexture;
 RWTexture2D<float4> currentImg;
 RWTexture2D<float4> nextImg;
+RWTexture2D<float4> splitImg;
 float iterations;
 float lerpVal;
+int offset;
 
 int CalculatePoint(double real, double imag)
 {
@@ -47,6 +51,7 @@ void Calculate (uint3 id : SV_DispatchThreadID)
     int colourIdx = CalculatePoint(real, imag);
 
     float3 col = colours[colourIdx];
+    
     nextImg[id.xy] = float4(col.r, col.g, col.b, 1.0);
 }
 
@@ -58,4 +63,17 @@ void InterpolateRendertexture(uint3 id : SV_DispatchThreadID)
     float4 nextCol = nextImg[id.xy];
     float4 interpolatedCol = lerp(currCol, nextCol, float4(lerpVal, lerpVal, lerpVal, lerpVal));
     displayTexture[id.xy] = interpolatedCol;
+}
+
+[numthreads(8, 8, 1)]
+void CalculateSplit(uint3 id : SV_DispatchThreadID)
+{
+    double real = reals[id.x];
+    double imag = imags[id.y];
+    int colourIdx = CalculatePoint(real, imag);
+
+    float3 col = colours[colourIdx];
+    uint2 offset2D = uint2(0, offset);
+    
+    splitImg[id.xy + offset2D] = float4(col.r, col.g, col.b, 1.0);
 }

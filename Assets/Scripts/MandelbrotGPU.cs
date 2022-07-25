@@ -44,13 +44,14 @@ public class MandelbrotGPU : MonoBehaviour
     RenderTexture displayTexture;
     RenderTexture currentTexture;
     RenderTexture nextTexture;
+    RenderTexture splitTexture;
     Texture2D textureForImg;
     Vector3[] gradientColours;
     int d_size;
     int v3_size;
     Rect rect;
     int frameCounter = 0;
-    int countToKeyframe = 0;
+    int countToKeyframe = 1;
 
     void GetDiscreteGradient()
     {
@@ -62,6 +63,21 @@ public class MandelbrotGPU : MonoBehaviour
             Vector3 v = new Vector3(c.r, c.g, c.b);
             gradientColours[i] = v;
         }
+    }
+
+    void SaveAsImage()
+    {
+        RenderTexture t = RenderTexture.active;
+        //save rendertexture as image
+        RenderTexture.active = displayTexture;
+        textureForImg.ReadPixels(rect, 0, 0);
+        textureForImg.Apply();
+        byte[] bytes;
+        bytes = textureForImg.EncodeToJPG(100);
+
+        string path = @$"C:\Users\Jan\Desktop\sc\{frameCounter}.jpg";
+        System.IO.File.WriteAllBytes(path, bytes);
+        RenderTexture.active = t;
     }
 
     void Calculate()
@@ -83,6 +99,7 @@ public class MandelbrotGPU : MonoBehaviour
         computeShader.SetBuffer(0, "colours", computeBufferColours);
         computeShader.SetTexture(0, "nextImg", nextTexture);
         computeShader.SetFloat("iterations", iterations);
+        computeShader.SetInt("offset", 0);
         computeShader.Dispatch(0, _width / 8, height / 8, 1);
 
         computeBufferReal.Dispose();
@@ -92,6 +109,43 @@ public class MandelbrotGPU : MonoBehaviour
         frameCounter++;
     }
     
+    void CalculateSplit()
+    {
+        double[] reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
+        double[] imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
+
+        int heightSplitStart = (int)(height * (countToKeyframe - 1) / (float)keyframes);
+        int heightSplitEnd = (int)(height * countToKeyframe / (float)keyframes);
+
+        if (heightSplitStart != 0) {
+            heightSplitStart--;
+        }
+        double[] imagsSplit = new double[heightSplitEnd - heightSplitStart];
+        for (int i = 0; i < imagsSplit.Length; i++)
+        {
+            imagsSplit[i] = imags[i + heightSplitStart];
+        }
+
+        computeBufferReal = new ComputeBuffer(_width, d_size);
+        computeBufferImag = new ComputeBuffer(imagsSplit.Length, d_size);
+        computeBufferColours = new ComputeBuffer(iterations, v3_size);
+        computeBufferReal.SetData(reals);
+        computeBufferImag.SetData(imagsSplit);
+        computeBufferColours.SetData(gradientColours);
+
+        computeShader.SetBuffer(2, "reals", computeBufferReal);
+        computeShader.SetBuffer(2, "imags", computeBufferImag);
+        computeShader.SetBuffer(2, "colours", computeBufferColours);
+        computeShader.SetTexture(2, "splitImg", splitTexture);
+        computeShader.SetFloat("iterations", iterations);
+        computeShader.SetInt("offset", heightSplitStart);
+        computeShader.Dispatch(2, _width / 8, imagsSplit.Length / 8, 1);
+
+        computeBufferReal.Dispose();
+        computeBufferImag.Dispose();
+        computeBufferColours.Dispose();
+    }
+
     void LerpRenderTextures()
     {
         float lerpVal = (float)countToKeyframe / keyframes;
@@ -153,7 +207,7 @@ public class MandelbrotGPU : MonoBehaviour
         displayTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
         currentTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
         nextTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
-
+        splitTexture = MandelbrotHelper.CreateNewRenderTexture(_width, height);
 
 
         textureForImg = new Texture2D(_width, height, TextureFormat.RGBA32, false);
@@ -165,7 +219,7 @@ public class MandelbrotGPU : MonoBehaviour
         Graphics.Blit(nextTexture, displayTexture);
         UpdateBoundaries();
         Calculate();
-        countToKeyframe++;
+        UpdateBoundaries(); //Setup for split-creation of the 3rd frame
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -183,33 +237,24 @@ public class MandelbrotGPU : MonoBehaviour
 
         if (countToKeyframe == keyframes)
         {
+            CalculateSplit();
             Graphics.Blit(nextTexture, currentTexture);
             Graphics.Blit(nextTexture, displayTexture);
-            UpdateBoundaries();
-            Calculate();
-            countToKeyframe = 0;
+            Graphics.Blit(splitTexture, nextTexture);
+            UpdateBoundaries(); //Update for split calculation of coming frame
+            countToKeyframe = 1;
         }
         else
         {
+            CalculateSplit();
             LerpRenderTextures();
             countToKeyframe++;
         }
-        
 
-
-        if (!record)
+        if (record)
         {
-            return;
+            SaveAsImage();
         }
-        //save rendertexture as image
-        RenderTexture.active = displayTexture;
-        textureForImg.ReadPixels(rect, 0, 0);
-        textureForImg.Apply();
-        byte[] bytes;
-        bytes = textureForImg.EncodeToPNG();
-
-        string path = @$"C:\Users\Jan\Desktop\sc\{frameCounter}.png";
-        System.IO.File.WriteAllBytes(path, bytes);
     }
 
     void OnGUI()
@@ -228,7 +273,7 @@ public class MandelbrotGPU : MonoBehaviour
             InitImageValues();
             Calculate();
             Graphics.Blit(nextTexture, displayTexture);
-            countToKeyframe = 0;
+            countToKeyframe = 1;
         }
         if (GUI.Button(new Rect(500, 0, 100, 50), "Screenshot"))
         {

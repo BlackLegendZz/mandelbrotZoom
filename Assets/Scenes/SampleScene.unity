@@ -154,11 +154,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 00ce097bbc69c4f44ab7c31f64f4e2b7, type: 3}
-  width: 1080
-  keyframes: 1
-  record: 0
-  iterations: 1500
-  zoomFactor: 0.01
+  width: 1920
+  keyframes: 8
+  record: 1
+  iterations: 700
+  zoomFactor: 0.03
   zoomMultiplier: 1
   realDest: -0,776592902
   imagDest: -0,13664090722
