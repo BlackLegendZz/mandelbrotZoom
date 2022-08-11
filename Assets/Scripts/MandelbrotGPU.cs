@@ -194,6 +194,30 @@ public class MandelbrotGPU : MonoBehaviour
         imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
     }
 
+    void CreateNextFrame()
+    {
+        if (countToKeyframe == keyframes)
+        {
+            CalculateSplit();
+            Graphics.Blit(nextTexture, currentTexture);
+            Graphics.Blit(nextTexture, displayTexture);
+            Graphics.Blit(splitTexture, nextTexture);
+            UpdateBoundaries(); //Update for split calculation of coming frame
+            countToKeyframe = 1;
+        }
+        else
+        {
+            CalculateSplit();
+            LerpRenderTextures();
+            countToKeyframe++;
+        }
+
+        if (record)
+        {
+            SaveAsImage();
+        }
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -241,31 +265,12 @@ public class MandelbrotGPU : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!run)
+        if (run || countToKeyframe != 1)
         {
-            return;
+            CreateNextFrame();
         }
 
-        if (countToKeyframe == keyframes)
-        {
-            CalculateSplit();
-            Graphics.Blit(nextTexture, currentTexture);
-            Graphics.Blit(nextTexture, displayTexture);
-            Graphics.Blit(splitTexture, nextTexture);
-            UpdateBoundaries(); //Update for split calculation of coming frame
-            countToKeyframe = 1;
-        }
-        else
-        {
-            CalculateSplit();
-            LerpRenderTextures();
-            countToKeyframe++;
-        }
 
-        if (record)
-        {
-            SaveAsImage();
-        }
     }
 
     void OnGUI()
