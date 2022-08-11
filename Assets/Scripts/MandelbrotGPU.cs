@@ -1,6 +1,5 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 public class MandelbrotGPU : MonoBehaviour
@@ -52,6 +51,7 @@ public class MandelbrotGPU : MonoBehaviour
     Rect rect;
     int frameCounter = 0;
     int countToKeyframe = 1;
+    string recordPath = Path.Combine(Environment.CurrentDirectory, "recording");
 
     void GetDiscreteGradient()
     {
@@ -74,9 +74,8 @@ public class MandelbrotGPU : MonoBehaviour
         textureForImg.Apply();
         byte[] bytes;
         bytes = textureForImg.EncodeToJPG(100);
-
-        string path = @$"C:\Users\Jan\Desktop\sc\{frameCounter}.jpg";
-        System.IO.File.WriteAllBytes(path, bytes);
+        
+        File.WriteAllBytes(Path.Combine(recordPath, $"{frameCounter}.jpg"), bytes);
         RenderTexture.active = t;
     }
 
@@ -192,13 +191,19 @@ public class MandelbrotGPU : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        if (!Directory.Exists(recordPath))
+        {
+            Directory.CreateDirectory(recordPath);
+        }
+        recordPath = Path.Combine(recordPath, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(recordPath);
+
         d_size = sizeof(double);
         v3_size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vector3));
 
         _width = width;
         destination.real = decimal.Parse(realDest);
         destination.imag = decimal.Parse(imagDest);
-        Debug.Log($"{destination.real}, {destination.imag}");
         x = 16;// transform.localScale.x;
         y = 9;// transform.localScale.y;
         
@@ -274,10 +279,6 @@ public class MandelbrotGPU : MonoBehaviour
             Calculate();
             Graphics.Blit(nextTexture, displayTexture);
             countToKeyframe = 1;
-        }
-        if (GUI.Button(new Rect(500, 0, 100, 50), "Screenshot"))
-        {
-            ScreenCapture.CaptureScreenshot(@"C:\Users\Jan\Desktop\sc\sc.png");
         }
     } 
 }
