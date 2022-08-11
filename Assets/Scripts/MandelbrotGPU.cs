@@ -52,6 +52,8 @@ public class MandelbrotGPU : MonoBehaviour
     int frameCounter = 0;
     int countToKeyframe = 1;
     string recordPath = Path.Combine(Environment.CurrentDirectory, "recording");
+    double[] reals;
+    double[] imags;
 
     void GetDiscreteGradient()
     {
@@ -81,10 +83,8 @@ public class MandelbrotGPU : MonoBehaviour
 
     void Calculate()
     {
-
+        GetNewComplexData();
         GetDiscreteGradient();
-        double[] reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
-        double[] imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
 
         computeBufferReal = new ComputeBuffer(_width, d_size);
         computeBufferImag = new ComputeBuffer(height, d_size);
@@ -110,8 +110,8 @@ public class MandelbrotGPU : MonoBehaviour
     
     void CalculateSplit()
     {
-        double[] reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
-        double[] imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
+        GetNewComplexData();
+        GetDiscreteGradient();
 
         int heightSplitStart = (int)(height * (countToKeyframe - 1) / (float)keyframes);
         int heightSplitEnd = (int)(height * countToKeyframe / (float)keyframes);
@@ -188,6 +188,12 @@ public class MandelbrotGPU : MonoBehaviour
         bounds.yMax -= yMaxDistSc;
     }
     
+    void GetNewComplexData()
+    {
+        reals = MandelbrotHelper.Linspace((double)bounds.xMin, (double)bounds.xMax, _width);
+        imags = MandelbrotHelper.Linspace((double)bounds.yMin, (double)bounds.yMax, height);
+    }
+
     // Start is called before the first frame update
     void Start()
     {
